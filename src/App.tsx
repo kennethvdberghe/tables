@@ -1,4 +1,5 @@
 import {
+  SortingState,
   createColumnHelper,
   flexRender,
   getCoreRowModel,
@@ -8,11 +9,17 @@ import { keepPreviousData, useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 
-const useVehicles = (page = 0) => {
+const useVehicles = (page = 0, sort = "", sortDirection = "") => {
   return useQuery({
-    queryKey: ["vehicles", page],
+    queryKey: ["vehicles", page, sort, sortDirection],
     queryFn: async () => {
-      const response = await fetch(`/vehicles?page=${page}`);
+      const search = new URLSearchParams({
+        page: page.toString(),
+        sort,
+        sortDirection,
+      });
+
+      const response = await fetch(`/vehicles?${search.toString()}`);
       const { data } = await response.json();
       return data;
     },
@@ -42,22 +49,29 @@ const columns = [
 ];
 
 const defaultData: Car[] = [];
+const pageSize = 10;
 
 function App() {
   const [searchParams, setSearchParams] = useSearchParams();
 
   const pageIndex = Number(searchParams.get("page"));
-  const pageSize = 10;
+  const sortId = searchParams.get("sort") ?? "";
+  const sortDirection = searchParams.get("direction") ?? "";
 
-  const dataQuery = useVehicles(pageIndex);
+  const dataQuery = useVehicles(pageIndex, sortId, sortDirection);
 
   const pagination = useMemo(
     () => ({
       pageIndex,
       pageSize,
     }),
-    [pageIndex, pageSize]
+    [pageIndex]
   );
+
+  const sorting = useMemo<SortingState>(() => {
+    if (!sortId) return [];
+    return [{ id: sortId, desc: sortDirection === "desc" }];
+  }, [sortId, sortDirection]);
 
   const table = useReactTable({
     columns,
@@ -65,9 +79,27 @@ function App() {
     getCoreRowModel: getCoreRowModel(),
     state: {
       pagination,
+      sorting,
     },
     pageCount: 10,
+    manualSorting: true,
     manualPagination: true,
+    onSortingChange: (updater) => {
+      if (typeof updater === "function") {
+        const [{ id, desc }] = updater(sorting);
+        setSearchParams((prev) => {
+          prev.set("sort", id);
+          prev.set("direction", desc ? "desc" : "asc");
+          return prev;
+        });
+      } else {
+        setSearchParams((prev) => {
+          prev.set("sort", updater[0].id.toString());
+          prev.set("direction", updater[0].desc ? "desc" : "asc");
+          return prev;
+        });
+      }
+    },
     onPaginationChange: (updater) => {
       if (typeof updater === "function") {
         const { pageIndex } = updater(pagination);
@@ -91,13 +123,19 @@ function App() {
           {table.getHeaderGroups().map((headerGroup) => (
             <tr key={headerGroup.id}>
               {headerGroup.headers.map((header) => (
-                <th key={header.id}>
+                <th
+                  key={header.id}
+                  onClick={header.column.getToggleSortingHandler()}
+                >
                   {header.isPlaceholder
                     ? null
                     : flexRender(
                         header.column.columnDef.header,
                         header.getContext()
                       )}
+                  {{ asc: "🔼", desc: "🔽" }[
+                    header.column.getIsSorted() as string
+                  ] ?? null}
                 </th>
               ))}
             </tr>
