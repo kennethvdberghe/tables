@@ -6,7 +6,7 @@ import {
 } from "@tanstack/react-table";
 import "./App.css";
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 
 const useVehicles = (page = 0) => {
