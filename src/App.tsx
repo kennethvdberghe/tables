@@ -85,34 +85,28 @@ function App() {
     manualSorting: true,
     manualPagination: true,
     onSortingChange: (updater) => {
-      if (typeof updater === "function") {
-        const [{ id, desc }] = updater(sorting);
-        setSearchParams((prev) => {
-          prev.set("sort", id);
-          prev.set("direction", desc ? "desc" : "asc");
-          return prev;
-        });
-      } else {
-        setSearchParams((prev) => {
-          prev.set("sort", updater[0].id.toString());
-          prev.set("direction", updater[0].desc ? "desc" : "asc");
+      const [sortInfo] =
+        typeof updater === "function" ? updater(sorting) : updater;
+      if (!sortInfo) {
+        return setSearchParams((prev) => {
+          prev.delete("sort");
+          prev.delete("direction");
           return prev;
         });
       }
+      setSearchParams((prev) => {
+        prev.set("sort", sortInfo.id);
+        prev.set("direction", sortInfo.desc ? "desc" : "asc");
+        return prev;
+      });
     },
     onPaginationChange: (updater) => {
-      if (typeof updater === "function") {
-        const { pageIndex } = updater(pagination);
-        setSearchParams((prev) => {
-          prev.set("page", pageIndex.toString());
-          return prev;
-        });
-      } else {
-        setSearchParams((prev) => {
-          prev.set("page", updater.pageIndex.toString());
-          return prev;
-        });
-      }
+      const { pageIndex } =
+        typeof updater === "function" ? updater(pagination) : updater;
+      setSearchParams((prev) => {
+        prev.set("page", pageIndex.toString());
+        return prev;
+      });
     },
   });
 
